@@ -740,8 +740,8 @@ wheels = [
 
 [[package]]
 name = "mcp-login-oauth"
-version = "0.2.3"
-source = { git = "https://github.com/Marceltov/mcp-login-oauth?rev=v0.2.3#3a7b6388898f8e73ec0dc5a39e7f09ca6b09a8d4" }
+version = "0.3.0"
+source = { git = "https://github.com/Marceltov/mcp-login-oauth?rev=v0.3.0#1e1cd2d31f62c08aa37b2624634a965beb13d1a3" }
 dependencies = [
     { name = "fastmcp" },
 ]
@@ -769,7 +769,7 @@ dev = [
 requires-dist = [
     { name = "argon2-cffi", specifier = ">=25.1.0" },
     { name = "httpx", specifier = ">=0.28" },
-    { name = "mcp-login-oauth", git = "https://github.com/Marceltov/mcp-login-oauth?rev=v0.2.3" },
+    { name = "mcp-login-oauth", git = "https://github.com/Marceltov/mcp-login-oauth?rev=v0.3.0" },
     { name = "pydantic", specifier = ">=2.14.1" },
     { name = "pyyaml", specifier = ">=6.0.3" },
     { name = "uvicorn", specifier = ">=0.30" },
