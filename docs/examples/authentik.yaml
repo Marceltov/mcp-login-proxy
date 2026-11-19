@@ -1,6 +1,6 @@
 # Any MCP server, signed in through Authentik (or another OpenID Connect provider) instead of a form.
 # In Authentik: an OAuth2/OpenID provider (confidential client, redirect URI <MCP_BASE_URL>/login/callback,
-# scope mappings openid, profile, email) and an application for it. The proxy lets in whoever is in an
+# scope mappings openid, profile, email, grant type authorization_code) and an application for it. The proxy lets in whoever is in an
 # allowed group or on the allowed user list; nobody else, even with an Authentik account.
 service_name: OpenBB
 upstream: ${OPENBB_MCP_URL}

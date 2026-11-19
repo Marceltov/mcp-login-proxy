@@ -39,4 +39,4 @@ testpaths = ["tests"]
 pythonpath = ["."]
 
 [tool.uv.sources]
-mcp-login-oauth = { git = "https://github.com/Marceltov/mcp-login-oauth", rev = "oidc-login" }
+mcp-login-oauth = { git = "https://github.com/Marceltov/mcp-login-oauth", rev = "v0.4.0" }

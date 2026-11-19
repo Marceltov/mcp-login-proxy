@@ -68,7 +68,14 @@ People sign in at an OpenID Connect provider (Authentik, Keycloak, …) instead 
 
 Register `<MCP_BASE_URL>/login/callback` as the redirect URI at the provider. The login keeps only `{user}`; `fields` and `static_tokens` are refused with `oidc`. `{user}` can go upstream, for example `upstream_headers: {X-Forwarded-User: "{user}"}`.
 
-In Authentik: *Applications → Providers → Create → OAuth2/OpenID Provider* (client type confidential, the redirect URI above, signing key set, the default scope mappings), then an application for it. A policy binding on the application can limit who may sign in there as well.
+In Authentik: *Applications → Providers → Create → OAuth2/OpenID Provider*, then an application for it. Checked against Authentik 2026.8:
+
+- client type **confidential**, the redirect URI above (strict), a signing key;
+- the scope mappings **openid, profile and email** (`groups` comes with `profile`); without them the token carries no scopes and the userinfo endpoint answers 403;
+- grant types including **authorization_code**: a provider made through the API or a blueprint starts with none, and Authentik then refuses the login as "otherwise malformed";
+- profile claims don't have to be in the ID token: the proxy reads `preferred_username` and `groups` from the userinfo endpoint.
+
+A policy binding on the application can limit who may sign in there as well.
 
 ## Data volume
 
