@@ -740,8 +740,8 @@ wheels = [
 
 [[package]]
 name = "mcp-login-oauth"
-version = "0.4.0"
-source = { git = "https://github.com/Marceltov/mcp-login-oauth?rev=v0.4.0#9d42e916e636ab9247a020bac8f9ac731bcea2b6" }
+version = "0.5.0"
+source = { git = "https://github.com/Marceltov/mcp-login-oauth?rev=v0.5.0#5f6642ce11f2288bcc4a45583854350bf359ba53" }
 dependencies = [
     { name = "fastmcp" },
     { name = "httpx" },
@@ -751,7 +751,7 @@ dependencies = [
 
 [[package]]
 name = "mcp-login-proxy"
-version = "0.3.1"
+version = "0.4.0"
 source = { editable = "." }
 dependencies = [
     { name = "argon2-cffi" },
@@ -772,7 +772,7 @@ dev = [
 requires-dist = [
     { name = "argon2-cffi", specifier = ">=25.1.0" },
     { name = "httpx", specifier = ">=0.28" },
-    { name = "mcp-login-oauth", git = "https://github.com/Marceltov/mcp-login-oauth?rev=v0.4.0" },
+    { name = "mcp-login-oauth", git = "https://github.com/Marceltov/mcp-login-oauth?rev=v0.5.0" },
     { name = "pydantic", specifier = ">=2.14.1" },
     { name = "pyyaml", specifier = ">=6.0.3" },
     { name = "uvicorn", specifier = ">=0.30" },

@@ -55,6 +55,17 @@ class Exchange(_Strict):
     error: str | None = None  # the JSON field of a refusal, looked up in `messages`
 
 
+class Credential(_Strict):
+    """After the sign-in, one request with the provider's access token ({access_token}) and the user name
+    ({user}) whose JSON answer holds the upstream's credential, e.g. an app token."""
+    request: HttpRequest
+    token: str  # the JSON field of the answer that holds the credential
+    variable: str = "token"  # the variable it becomes, e.g. {token}
+
+
+CREDENTIAL_INPUTS = {"access_token", "user"}
+
+
 class Oidc(_Strict):
     issuer: str  # exactly as the provider publishes it; Authentik: https://<host>/application/o/<slug>/
     client_id: str
@@ -65,6 +76,7 @@ class Oidc(_Strict):
     allowed_groups: list[str] = []
     allowed_users: list[str] = []
     verify_tls: bool = True
+    credential: Credential | None = None
 
 
 class Login(_Strict):
@@ -150,8 +162,12 @@ def _substitute(text: str, env: Mapping[str, str]) -> str:
 
 def grant_names(proxy: ProxyConfig) -> set[str]:
     """The variables a grant may hold: what a login produces, before `vars` are derived."""
-    if proxy.login.kind in ("users", "oidc"):
-        return {"user"}  # never the password or the provider's tokens: the upstream doesn't need them
+    if proxy.login.kind == "oidc":
+        # never the provider's tokens: only the credential they bought, if any
+        credential = proxy.login.oidc.credential
+        return {"user", credential.variable} if credential else {"user"}
+    if proxy.login.kind == "users":
+        return {"user"}  # never the password: the upstream doesn't need it
     names = {f.name for f in proxy.fields}
     if proxy.login.kind == "exchange":
         names.add(proxy.login.exchange.variable)
@@ -194,6 +210,8 @@ def _check(proxy: ProxyConfig) -> None:
     _known("upstream_headers", proxy.upstream_headers, known)
     if proxy.revoke:
         _known("revoke", proxy.revoke.model_dump(), known)
+    if proxy.login.oidc and proxy.login.oidc.credential:
+        _known("login.oidc.credential.request", proxy.login.oidc.credential.request.model_dump(), CREDENTIAL_INPUTS)
     if proxy.login.exchange:
         _known("login.exchange.request", proxy.login.exchange.request.model_dump(),
                {f.name for f in proxy.fields})

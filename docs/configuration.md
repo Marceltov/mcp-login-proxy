@@ -65,8 +65,21 @@ People sign in at an OpenID Connect provider (Authentik, Keycloak, …) instead 
 | `user_claim` | `preferred_username` | The claim that becomes `{user}` |
 | `allowed_groups`, `allowed_users` | none | Who gets in: a name in `allowed_users` or one of the token's `groups` in `allowed_groups`. At least one list is required: an account at the provider alone is not enough |
 | `verify_tls` | `true` | `false` turns certificate checks off for the provider |
+| `credential` | none | Turn the sign-in into the upstream's own credential (below) |
 
 Register `<MCP_BASE_URL>/login/callback` as the redirect URI at the provider. The login keeps only `{user}`; `fields` and `static_tokens` are refused with `oidc`. `{user}` can go upstream, for example `upstream_headers: {X-Forwarded-User: "{user}"}`.
+
+#### `login.oidc.credential`
+
+For an upstream that takes a credential of its own on every request and makes one only for its provider's access token. OpenCloud is one: everyone signs in through Authentik, and `POST /auth-app/tokens` creates an app token for the person whose access token it carries. With `credential`, the proxy sends that one request right after the sign-in, keeps the credential from the answer in the login, and forwards it from then on; the access token is used for this request only and never stored. Nobody makes or pastes a token. Example: [`docs/examples/opencloud-oidc.yaml`](https://github.com/Marceltov/mcp-login-proxy/blob/main/docs/examples/opencloud-oidc.yaml).
+
+| Key | Default | Meaning |
+|---|---|---|
+| `request` | required | `{method, url, headers, json}` as in `login.exchange`; it may use `{access_token}` (the provider's) and `{user}` |
+| `token` | required | The JSON field of the answer that holds the credential |
+| `variable` | `token` | The variable it becomes, for `vars` and `upstream_headers` |
+
+A refused answer or one without the field shows on the login page, and the person is not let in. A credential with an expiry (OpenCloud's `expiry=2160h`) ends that login when it runs out: the upstream then refuses it, and the client has to sign in again. Pick the expiry with that in mind. The provider's client also needs the scopes the upstream wants in the access token (OpenCloud with roles from Authentik: `roles`).
 
 In Authentik: *Applications → Providers → Create → OAuth2/OpenID Provider*, then an application for it. Checked against Authentik 2026.8:
 

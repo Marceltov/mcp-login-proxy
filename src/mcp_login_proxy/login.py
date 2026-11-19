@@ -4,7 +4,9 @@
 - upstream: the form's values, rendered into the upstream headers, are tried with one initialize request.
 - exchange: the form is sent to a login URL, and a field of the JSON answer becomes a variable.
 - oidc: the person signs in at an OpenID Connect provider (mcp-login-oauth does the round trip and checks
-  the ID token); the proxy lets them in when their name or one of their groups is allowed.
+  the ID token); the proxy lets them in when their name or one of their groups is allowed. With
+  `credential`, the provider's access token then buys the upstream's credential (one request, e.g. an app
+  token of the service), which the grant keeps; the access token itself is used once and dropped.
 
 Passwords and tokens from the form are never logged.
 """
@@ -115,7 +117,27 @@ def build_hooks(proxy: ProxyConfig, client: httpx.AsyncClient) -> LoginHooks:
                 raise LoginRejected(f"{oidc.name} sent no {oidc.user_claim} for this account.")
             if name not in allowed_users and not groups & allowed_groups:
                 raise LoginRejected(f"{name} may not use {proxy.service_name}.")
-            return {"user": name}
+            if not oidc.credential:
+                return {"user": name}
+            access = claims.get("access_token")
+            if not isinstance(access, str) or not access:
+                raise LoginRejected(f"{oidc.name} sent no access token to create the {proxy.service_name} login.")
+            credential = oidc.credential
+            try:
+                r = await _send(client, credential.request, {"access_token": access, "user": name})
+            except httpx.HTTPError as e:
+                log.warning("login: the credential URL is unreachable: %s", type(e).__name__)
+                raise LoginRejected("The service is unreachable, try again later.") from None
+            if not r.is_success:
+                raise LoginRejected(f"{proxy.service_name} refused to create a login for {name} "
+                                    f"(HTTP {r.status_code}).")
+            try:
+                token = r.json()[credential.token]
+            except (ValueError, KeyError, TypeError):
+                raise LoginRejected(f"The answer holds no {credential.token!r}.") from None
+            if not isinstance(token, str) or not token:
+                raise LoginRejected(f"The answer holds no {credential.token!r}.")
+            return {"user": name, credential.variable: token}
 
     elif proxy.login.kind == "upstream":
         async def check_login(form: dict) -> dict:
