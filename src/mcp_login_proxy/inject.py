@@ -1,6 +1,6 @@
-"""Add the house rules (MCP_INSTRUCTIONS) to the result of Trilium's initialize response.
+"""Add the house rules (`instructions` in the config file) to the result of the upstream's initialize response.
 
-This is the proxy's one rewrite. Trilium answers initialize as a server-sent event; a plain JSON answer is
+This is the proxy's one rewrite. Servers often answer initialize as a server-sent event; a plain JSON answer is
 handled the same way. Anything that doesn't parse as expected is returned unchanged.
 """
 

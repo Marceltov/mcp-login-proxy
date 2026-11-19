@@ -21,7 +21,6 @@ mcp-login-proxy = "mcp_login_proxy.app:main"
 dev = [
     "pytest>=8",
     "pytest-asyncio>=0.24",
-    "ruff>=0.17.5",
 ]
 
 [build-system]

@@ -1,1 +1,1 @@
-"""OAuth front for Trilium Notes' built-in MCP server."""
+"""OAuth login front for MCP servers, configured per deployment."""

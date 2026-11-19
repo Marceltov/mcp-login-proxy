@@ -1,6 +1,7 @@
-"""Transparent, streaming forwarding of /mcp to Trilium's built-in MCP server.
+"""Transparent, streaming forwarding of /mcp to the upstream MCP server.
 
-Only the Authorization header changes (to the client's ETAPI token). Bodies, methods, the query string
+Only the Authorization header changes: the client's (the proxy's own token) is always dropped, and the
+headers the config file's `upstream_headers` render from the grant are added. Bodies, methods, the query string
 and the remaining headers pass through, and responses stream back chunk by chunk as they arrive. One
 exception reads the (small) response whole first: with instructions configured, the response to
 `initialize`, so the instructions can be added to it (see inject.py).
@@ -10,6 +11,7 @@ import asyncio
 import contextlib
 import json
 import logging
+from collections.abc import Callable
 
 import httpx
 
@@ -60,30 +62,32 @@ async def _json(send, status: int, obj: dict) -> None:
 
 
 class Forwarder:
-    """Pure ASGI app for /mcp. Expects scope["user"] from the auth middleware, carrying the grant
-    {"etapi_token": …} in its access token's claims (mcp-login-oauth)."""
+    """Pure ASGI app for /mcp. Expects scope["user"] from the auth middleware, carrying the grant in its
+    access token's claims (mcp-login-oauth); `headers_for(grant)` says what to add upstream."""
 
-    def __init__(self, upstream: httpx.AsyncClient, instructions: str | None = None):
+    def __init__(self, upstream: httpx.AsyncClient, path: str,
+                 headers_for: Callable[[dict], list[tuple[bytes, bytes]]], instructions: str | None = None):
         self.upstream = upstream
+        self.path = path
+        self.headers_for = headers_for
         self.instructions = instructions
 
     async def __call__(self, scope, receive, send):
-        token = scope["user"].access_token.claims["grant"]["etapi_token"]
+        added = self.headers_for(scope["user"].access_token.claims["grant"])
         try:
             body = await _read_body(receive)
         except ConnectionAbortedError:
             return
-        drop = REQUEST_DROP | _connection_listed(scope["headers"])
-        headers = [(k, v) for k, v in scope["headers"] if k.decode("latin-1").lower() not in drop]
-        headers.append((b"authorization", token.encode()))
+        drop = REQUEST_DROP | _connection_listed(scope["headers"]) | {k.decode("latin-1") for k, _ in added}
+        headers = [(k, v) for k, v in scope["headers"] if k.decode("latin-1").lower() not in drop] + added
         query = scope.get("query_string", b"").decode("latin-1")
-        request = self.upstream.build_request(scope["method"], "/mcp" + (f"?{query}" if query else ""),
+        request = self.upstream.build_request(scope["method"], self.path + (f"?{query}" if query else ""),
                                               headers=headers, content=body)
         try:
             response = await self.upstream.send(request, stream=True)
         except httpx.HTTPError as e:
-            log.warning("Trilium is unreachable: %s", type(e).__name__)
-            await _json(send, 502, {"error": "Trilium is unreachable"})
+            log.warning("the upstream is unreachable: %s", type(e).__name__)
+            await _json(send, 502, {"error": "upstream unreachable"})
             return
         try:
             if self.instructions and _is_initialize(body):

@@ -1,0 +1,11 @@
+# OpenBB's MCP server (openbb-mcp), which has no login of its own. The form is checked against a
+# fixed list of users and argon2id hashes (make one with `mcp-login-proxy hash`), and requests go to
+# the upstream with nothing added.
+service_name: OpenBB
+upstream: ${OPENBB_MCP_URL}
+instructions: "OpenBB market data. Find an endpoint with search_tools, then call it with call_tool."
+fields:
+  - {name: user, label: User name, autocomplete: username, required: true}
+  - {name: password, label: Password, type: password, required: true}
+login:
+  users: ${OPENBB_MCP_USERS}   # "name:$argon2id$…" entries separated by spaces or newlines
