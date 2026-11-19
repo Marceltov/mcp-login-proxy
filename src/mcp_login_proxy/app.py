@@ -15,7 +15,7 @@ from urllib.parse import urlsplit
 import httpx
 from fastmcp.server.auth.middleware import RequireAuthMiddleware
 from mcp.server.auth.routes import build_resource_metadata_url
-from mcp_login_oauth import BearerPrefixMiddleware, LoginOAuthProvider, build_store
+from mcp_login_oauth import BearerPrefixMiddleware, LoginOAuthProvider, OidcLogin, build_store
 from pydantic import AnyHttpUrl
 from starlette.applications import Starlette
 from starlette.requests import Request
@@ -40,6 +40,9 @@ def build_provider(config: Config, client: httpx.AsyncClient, store_dir: Path, *
                 fields=[f.to_login_field() for f in proxy.fields],
                 check_login=hooks.check_login, on_revoke=hooks.on_revoke, verify_static=hooks.verify_static,
                 token_prefix=proxy.token_prefix)
+    if oidc := proxy.login.oidc:
+        args["oidc"] = OidcLogin(issuer=oidc.issuer, client_id=oidc.client_id, client_secret=oidc.client_secret,
+                                 scopes=tuple(oidc.scopes), name=oidc.name, verify_tls=oidc.verify_tls)
     return LoginOAuthProvider(**{**args, **overrides})
 
 

@@ -3,6 +3,8 @@
 - users: the form is checked against a fixed list of argon2id hashes; the grant is {"user": name}.
 - upstream: the form's values, rendered into the upstream headers, are tried with one initialize request.
 - exchange: the form is sent to a login URL, and a field of the JSON answer becomes a variable.
+- oidc: the person signs in at an OpenID Connect provider (mcp-login-oauth does the round trip and checks
+  the ID token); the proxy lets them in when their name or one of their groups is allowed.
 
 Passwords and tokens from the form are never logged.
 """
@@ -48,7 +50,7 @@ def grant_variables(proxy: ProxyConfig) -> set[str]:
     if proxy.revoke:
         used |= placeholders(proxy.revoke.model_dump())
     keep = used & grant_names(proxy)
-    return keep | {"user"} if proxy.login.kind == "users" else keep
+    return keep | {"user"} if proxy.login.kind in ("users", "oidc") else keep
 
 
 def upstream_headers(proxy: ProxyConfig, grant: dict) -> list[tuple[bytes, bytes]]:
@@ -98,6 +100,21 @@ def build_hooks(proxy: ProxyConfig, client: httpx.AsyncClient) -> LoginHooks:
                 ok = False
             if not ok:
                 raise LoginRejected(WRONG_USER_OR_PASSWORD)
+            return {"user": name}
+
+    elif proxy.login.kind == "oidc":
+        oidc = proxy.login.oidc
+        allowed_users, allowed_groups = set(oidc.allowed_users), set(oidc.allowed_groups)
+
+        async def check_login(claims: dict) -> dict:
+            name = claims.get(oidc.user_claim)
+            name = name.strip() if isinstance(name, str) else ""
+            groups = claims.get("groups")
+            groups = {g for g in groups if isinstance(g, str)} if isinstance(groups, list) else set()
+            if not name:
+                raise LoginRejected(f"{oidc.name} sent no {oidc.user_claim} for this account.")
+            if name not in allowed_users and not groups & allowed_groups:
+                raise LoginRejected(f"{name} may not use {proxy.service_name}.")
             return {"user": name}
 
     elif proxy.login.kind == "upstream":
