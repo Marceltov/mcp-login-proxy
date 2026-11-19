@@ -1,4 +1,4 @@
-# trilium-mcp-proxy: OAuth front for Trilium Notes' built-in MCP server.
+# mcp-login-proxy: OAuth login front for MCP servers, configured per deployment.
 #
 # Multi-stage: resolve the venv with uv (git only here: mcp-login-oauth is pinned by git tag),
 # then ship just the venv on python-slim, as a non-root user.
@@ -29,4 +29,4 @@ VOLUME /data
 EXPOSE 8081
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD python -c "import os,urllib.request; urllib.request.urlopen('http://127.0.0.1:%s/health' % os.environ.get('MCP_PORT', '8081'), timeout=4)"
-CMD ["trilium-mcp-proxy"]
+CMD ["mcp-login-proxy"]

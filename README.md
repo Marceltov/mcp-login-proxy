@@ -1,72 +1,45 @@
-# trilium-mcp-proxy
+# mcp-login-proxy
 
 <p>
-  <a href="https://trilium-mcp-proxy.marceltov.de/">
-    <img alt="Documentation" src="https://img.shields.io/badge/docs-trilium--mcp--proxy.marceltov.de-2f7a27">
+  <a href="https://mcp-login-proxy.marceltov.de/">
+    <img alt="Documentation" src="https://img.shields.io/badge/docs-mcp--login--proxy.marceltov.de-2f7a27">
   </a>
-  <a href="https://github.com/Marceltov/trilium-mcp-proxy/pkgs/container/trilium-mcp-proxy">
-    <img alt="GHCR image" src="https://img.shields.io/github/v/release/Marceltov/trilium-mcp-proxy?logo=docker&logoColor=white&label=ghcr.io%2Fmarceltov%2Ftrilium-mcp-proxy&color=2496ED">
+  <a href="https://github.com/Marceltov/mcp-login-proxy/pkgs/container/mcp-login-proxy">
+    <img alt="GHCR image" src="https://img.shields.io/github/v/release/Marceltov/mcp-login-proxy?logo=docker&logoColor=white&label=ghcr.io%2Fmarceltov%2Fmcp-login-proxy&color=2496ED">
   </a>
   <a href="LICENSE">
     <img alt="License: AGPL v3" src="https://img.shields.io/badge/License-AGPL_v3-blue.svg">
   </a>
 </p>
 
-An OAuth front for the MCP server that [Trilium Notes](https://triliumnotes.org) 0.106+ has built in
-at `/mcp`. On its own, Trilium's MCP server takes an ETAPI token in the `Authorization` header, so
-every client needs a token created under *Options → ETAPI* and pasted into its configuration.
+An OAuth login front for MCP servers. Add its URL to claude.ai, the Claude apps, Claude Code or any other MCP client, sign in once on a form, and every request goes to the MCP server behind it unchanged. Everything about that server is one config file:
 
-The proxy is a convenience on top: you add its URL to any MCP client (claude.ai, Claude Code, the
-Claude desktop and mobile apps, …) and log in once with your Trilium password. No token to create,
-paste or rotate.
-- **Login:** a client logs in once in the browser with the **Trilium password**, which creates an ETAPI
-  token for that client. The client then only holds opaque OAuth tokens that refresh on their own.
-- **Your password stays on your server:** the proxy runs next to Trilium and the login page is its
-  own. The password goes only from your browser to that page and on to your Trilium's
-  `/etapi/auth/login`; the proxy never stores or logs it. The MCP client (claude.ai included) never
-  sees it, only opaque OAuth tokens that work nowhere but your proxy.
-- **Forwarding:** every `/mcp` request goes **unchanged** to Trilium, with only `Authorization` swapped
-  for that client's ETAPI token. Responses stream back as they arrive. The tools are exactly Trilium's
-  own, so new ones from a Trilium update appear without a proxy release.
-- **House rules:** with `MCP_INSTRUCTIONS` set, the proxy adds your standing instructions to Trilium's
-  `initialize` answer, which every client reads at connect. That's the only rewrite.
-- **Header clients still work:** a client that already has an ETAPI token (Claude Code) can send it, with
-  or without `Bearer`, and it's forwarded as is.
-- **Revocation:** revoking a client's login logs its ETAPI token out in Trilium.
+- **How a login is checked:** against a fixed list of users and argon2id hashes (`users`, for a server with no login of its own), with one request to the server (`upstream`, for one that takes a credential per request), or at a login URL whose answer holds a token (`exchange`, for one that hands out tokens).
+- **What is added to each request:** headers rendered from that login, e.g. `Authorization: Basic {basic}`. The client's own `Authorization` is never forwarded.
+- **House rules:** `instructions` are added to the server's `initialize` answer.
 
-The login comes from [mcp-login-oauth](https://github.com/Marceltov/mcp-login-oauth). It replaces
-[trilium-mcp](https://github.com/Marceltov/trilium-mcp), an ETAPI-based MCP server that is archived now
-that Trilium has its own.
+Example configs: [Trilium Notes](docs/examples/trilium.yaml), [OpenCloud](docs/examples/opencloud.yaml), [OpenBB](docs/examples/openbb.yaml). The login comes from [mcp-login-oauth](https://github.com/Marceltov/mcp-login-oauth). This project was trilium-mcp-proxy until v0.2.0 ([ADR 0003](docs/adr/0003-a-general-login-front-configured-per-deployment.md)).
 
 ## Documentation
 
-**Full documentation: [trilium-mcp-proxy.marceltov.de](https://trilium-mcp-proxy.marceltov.de/)**
+**Full documentation: [mcp-login-proxy.marceltov.de](https://mcp-login-proxy.marceltov.de/)**
 
-- [Quick start](https://trilium-mcp-proxy.marceltov.de/getting-started/): turn on Trilium's MCP server, add the proxy, publish it over HTTPS
-- [Connect a client](https://trilium-mcp-proxy.marceltov.de/connecting/): claude.ai and the Claude apps, Claude Code, other MCP clients
-- [Configuration](https://trilium-mcp-proxy.marceltov.de/configuration/), [security](https://trilium-mcp-proxy.marceltov.de/security/) and [how it works](https://trilium-mcp-proxy.marceltov.de/how-it-works/)
+- [Quick start](https://mcp-login-proxy.marceltov.de/getting-started/): write the config file, add the proxy, publish it over HTTPS
+- [Configuration](https://mcp-login-proxy.marceltov.de/configuration/): every key, and moving from trilium-mcp-proxy
+- [Connect a client](https://mcp-login-proxy.marceltov.de/connecting/), [security](https://mcp-login-proxy.marceltov.de/security/) and [how it works](https://mcp-login-proxy.marceltov.de/how-it-works/)
 
 ## Run it
 
-Enable Trilium's MCP server first: *Options → AI / LLM → MCP server*. Then add the proxy next to
-Trilium:
-
 ```yaml
 services:
-  trilium:
-    image: triliumnext/trilium:v0.106.1
-    # ...
-
-  trilium-mcp-proxy:
-    image: ghcr.io/marceltov/trilium-mcp-proxy:latest   # or pin a version
+  mcp-proxy:
+    image: ghcr.io/marceltov/mcp-login-proxy:0.2.0
     restart: unless-stopped
     environment:
-      TRILIUM_SERVER_URL: http://trilium:8080
-      MCP_BASE_URL: https://trilium-mcp-proxy.example.org   # the public URL, behind your TLS proxy
-      MCP_OAUTH_SECRET: ${MCP_OAUTH_SECRET}                 # openssl rand -hex 32
-      MCP_INSTRUCTIONS: |
-        Optional standing instructions every client sees at connect.
+      MCP_BASE_URL: https://mcp.example.org   # the public URL, behind your TLS proxy
+      MCP_OAUTH_SECRET: ${MCP_OAUTH_SECRET}   # openssl rand -hex 32
     volumes:
+      - ./proxy.yaml:/config/proxy.yaml:ro
       - mcp-proxy-oauth:/data
     ports:
       - "8081:8081"
@@ -75,36 +48,14 @@ volumes:
   mcp-proxy-oauth:
 ```
 
-Put it behind a TLS reverse proxy at `MCP_BASE_URL`. `GET /health` answers
-`{"status": "ok", "trilium": "ok" | "unreachable"}`.
-
-| Variable | Default | Meaning |
-|---|---|---|
-| `TRILIUM_SERVER_URL` | required | Trilium Notes as the proxy reaches it, e.g. `http://trilium:8080` |
-| `MCP_BASE_URL` | required | Public URL of the proxy; also the OAuth issuer (`https`, or `http` only for localhost) |
-| `MCP_OAUTH_SECRET` | required | Encrypts the stored logins in `/data`; changing it logs every client out |
-| `MCP_INSTRUCTIONS` | unset | Added to Trilium's `initialize` result as `instructions` |
-| `MCP_PORT` | `8081` | |
-
-## Connect a client
-
-- **claude.ai** (and the desktop and mobile apps): *Customize → Connectors → Add custom connector* with
-  `https://<your proxy>/mcp`. claude.ai opens the proxy's login page; enter your Trilium password.
-- **Claude Code:** either the same URL (Claude Code does OAuth too), or with an ETAPI token from
-  *Options → ETAPI*:
-  `claude mcp add --transport http trilium https://<your proxy>/mcp -H "Authorization: Bearer <token>" -s user`.
-  With a token, Claude Code can also talk to Trilium's `/mcp` directly. The proxy only adds the house
-  rules then.
-
-Each OAuth login creates its own ETAPI token, which shows up in Trilium under *Options → ETAPI*.
-Deleting it there cuts that client off. Revoking the login from the client deletes it too.
+`docker run --rm -it ghcr.io/marceltov/mcp-login-proxy hash` makes a password hash for `login.users`.
 
 ## Development
 
 ```bash
 uv sync
-uv run pytest -q --ignore=tests/live   # unit tests, against a fake Trilium
-./run-tests.sh -q                     # unit + live, against a disposable Trilium 0.106.1 (Docker)
+uv run pytest -q --ignore=tests/live   # unit tests, against fake upstreams
+./run-tests.sh -q                     # unit + live, against a disposable Trilium (Docker), with the Trilium example config
 ```
 
 ## License

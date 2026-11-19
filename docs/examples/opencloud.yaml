@@ -1,0 +1,14 @@
+# opencloud-mcp (opencloud-eu/opencloud-mcp), which takes Basic <user>:<app token> on every request.
+# The login is checked by one initialize request with those credentials, so a wrong app token fails
+# on the form and not on the first tool call.
+service_name: OpenCloud
+upstream: ${OPENCLOUD_MCP_URL}
+fields:
+  - {name: user, label: OpenCloud user name, autocomplete: username, required: true}
+  - {name: token, label: App token, type: password, required: true,
+     hint: "Create one in OpenCloud under Settings, App tokens."}
+login:
+  upstream: {}
+vars:
+  basic: {base64: "{user}:{token}"}
+upstream_headers: {Authorization: "Basic {basic}"}

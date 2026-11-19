@@ -1,10 +1,10 @@
-site_name: trilium-mcp-proxy
-site_description: "OAuth login for Trilium Notes' built-in MCP server: connect any MCP client by URL and sign in with your Trilium Notes password, which never leaves your server."
-site_url: https://trilium-mcp-proxy.marceltov.de/
-repo_url: https://github.com/Marceltov/trilium-mcp-proxy
-repo_name: Marceltov/trilium-mcp-proxy
+site_name: mcp-login-proxy
+site_description: "OAuth login front for MCP servers: connect any MCP client by URL, sign in once on a form, and requests pass through unchanged. One config file per deployment."
+site_url: https://mcp-login-proxy.marceltov.de/
+repo_url: https://github.com/Marceltov/mcp-login-proxy
+repo_name: Marceltov/mcp-login-proxy
 edit_uri: edit/main/docs/
-copyright: Copyright &copy; 2026 Marcel Bruckner. Licensed under <a href="https://github.com/Marceltov/trilium-mcp-proxy/blob/main/LICENSE">AGPL-3.0-or-later</a>
+copyright: Copyright &copy; 2026 Marcel Bruckner. Licensed under <a href="https://github.com/Marceltov/mcp-login-proxy/blob/main/LICENSE">AGPL-3.0-or-later</a>
 
 exclude_docs: |
   adr/
@@ -19,8 +19,8 @@ nav:
 
 theme:
   name: material
-  logo: trilium.svg
-  favicon: trilium.svg
+  logo: logo.svg
+  favicon: logo.svg
   font:
     text: Atkinson Hyperlegible Next
     code: Atkinson Hyperlegible Mono

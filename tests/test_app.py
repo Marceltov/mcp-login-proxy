@@ -7,9 +7,10 @@ import httpx
 import pytest
 from starlette.testclient import TestClient
 
-from trilium_mcp_proxy import app as app_module
-from trilium_mcp_proxy.app import build_app
-from trilium_mcp_proxy.config import Config
+from mcp_login_proxy import app as app_module
+from mcp_login_proxy.app import build_app
+from examples import trilium as trilium_example
+from mcp_login_proxy.config import Config
 
 BASE = "http://localhost:8081"
 REDIRECT = "http://localhost:9/cb"
@@ -20,7 +21,8 @@ def make_client(trilium, tmp_path):
     url, _ = trilium
 
     def make(trilium_url=url, transport=None):
-        config = Config(trilium_url=trilium_url, base_url=BASE, oauth_secret="s", instructions="House rules.")
+        proxy = trilium_example(trilium_url).model_copy(update={"instructions": "House rules."})
+        config = Config(proxy=proxy, base_url=BASE, oauth_secret="s")
         app = build_app(config, store_dir=tmp_path / "oauth", transport=transport, failed_login_delay=0)
         return TestClient(app, base_url=BASE)
     return make
@@ -126,10 +128,10 @@ def test_revoke_logs_out_in_trilium(client, trilium):
 
 def test_health_reports_trilium(make_client, trilium):
     with make_client() as c:
-        assert c.get("/health").json() == {"status": "ok", "trilium": "ok"}
+        assert c.get("/health").json() == {"status": "ok", "upstream": "ok"}
     with make_client(trilium_url="http://127.0.0.1:9") as c:
         r = c.get("/health")
-        assert r.status_code == 200 and r.json() == {"status": "ok", "trilium": "unreachable"}
+        assert r.status_code == 200 and r.json() == {"status": "ok", "upstream": "unreachable"}
 
 
 def test_login_page_names_trilium(client):
@@ -148,8 +150,9 @@ def test_initialize_gets_instructions_through_the_app(client, trilium):
 
 
 def test_main_exits_on_missing_config(monkeypatch, capsys):
-    for name in ("TRILIUM_SERVER_URL", "MCP_BASE_URL", "MCP_OAUTH_SECRET"):
+    monkeypatch.setattr("sys.argv", ["mcp-login-proxy"])
+    for name in ("MCP_BASE_URL", "MCP_OAUTH_SECRET"):
         monkeypatch.delenv(name, raising=False)
     with pytest.raises(SystemExit) as exit_:
         app_module.main()
-    assert exit_.value.code == 1 and "TRILIUM_SERVER_URL" in capsys.readouterr().err
+    assert exit_.value.code == 1 and "MCP_BASE_URL" in capsys.readouterr().err

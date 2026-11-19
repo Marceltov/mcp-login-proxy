@@ -39,7 +39,7 @@ def session(token: str, work):
 
 
 def test_health_ok():
-    assert httpx.get(f"{PROXY}/health").json() == {"status": "ok", "trilium": "ok"}
+    assert httpx.get(f"{PROXY}/health").json() == {"status": "ok", "upstream": "ok"}
 
 
 def test_oauth_login_lists_trilium_tools():

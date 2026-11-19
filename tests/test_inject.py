@@ -2,8 +2,8 @@ import json
 
 from conftest import call
 from fake_trilium import dumps
-from trilium_mcp_proxy.forward import Forwarder
-from trilium_mcp_proxy.inject import inject_instructions
+from mcp_login_proxy.forward import Forwarder
+from mcp_login_proxy.inject import inject_instructions
 
 GRANT = {"etapi_token": "etapi-1"}
 RESULT = {"protocolVersion": "2025-06-18", "capabilities": {"tools": {"listChanged": True}},
@@ -45,7 +45,7 @@ def test_unparseable_body_returned_unchanged():
 async def test_crlf_and_split_chunks(trilium, upstream):
     _, state = trilium
     state.canned, state.canned_chunks = TRILIUM_INIT.replace(b"\n", b"\r\n"), 3
-    r = await call(Forwarder(upstream, instructions="House rules."), body=INIT_REQ, grant=GRANT)
+    r = await call(Forwarder(upstream, "/mcp", lambda g: [(b"authorization", g["etapi_token"].encode())], "House rules."), body=INIT_REQ, grant=GRANT)
     assert r.status == 200 and sse_result(r.body)["instructions"] == "House rules."
     assert int(r.headers["content-length"]) == len(r.body)
 
@@ -56,14 +56,14 @@ async def test_non_initialize_is_byte_identical(trilium, upstream):
             '{"protocolVersion": "2025-06-18"} lives in this note'}]}, "jsonrpc": "2.0", "id": 2}) + b"\n\n"
     state.canned, state.canned_chunks = note, 2
     req = dumps({"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": {"name": "get_note"}})
-    r = await call(Forwarder(upstream, instructions="House rules."), body=req, grant=GRANT)
+    r = await call(Forwarder(upstream, "/mcp", lambda g: [(b"authorization", g["etapi_token"].encode())], "House rules."), body=req, grant=GRANT)
     assert r.body == note
 
 
 async def test_no_instructions_configured_streams_initialize_untouched(trilium, upstream):
     _, state = trilium
     state.canned = TRILIUM_INIT
-    r = await call(Forwarder(upstream), body=INIT_REQ, grant=GRANT)
+    r = await call(Forwarder(upstream, "/mcp", lambda g: [(b"authorization", g["etapi_token"].encode())]), body=INIT_REQ, grant=GRANT)
     assert r.body == TRILIUM_INIT
 
 
@@ -71,5 +71,5 @@ async def test_batch_or_invalid_request_is_not_injected(trilium, upstream):
     _, state = trilium
     state.canned = TRILIUM_INIT
     for req in (b"[" + INIT_REQ + b"]", b"{broken"):
-        r = await call(Forwarder(upstream, instructions="House rules."), body=req, grant=GRANT)
+        r = await call(Forwarder(upstream, "/mcp", lambda g: [(b"authorization", g["etapi_token"].encode())], "House rules."), body=req, grant=GRANT)
         assert r.body == TRILIUM_INIT

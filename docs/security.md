@@ -1,36 +1,41 @@
 # Security
 
-## Where your password goes
+## Where credentials go
 
-Only to your own servers. The login page is served by the proxy, which you run next to Trilium:
+Only to your own servers. The login page is served by the proxy:
 
 1. The MCP client (say claude.ai) sends your browser to the proxy's `/authorize` page.
-2. You type the Trilium Notes password there. The browser posts it to the proxy, over your HTTPS.
-3. The proxy posts it to Trilium's `/etapi/auth/login` and gets back a new ETAPI token for this client. The password is not stored and not logged.
-   With two-factor login on, the TOTP code (or a recovery code) goes along the same way. Trilium checks it on ETAPI logins from the release after 0.106.1 on; older versions accept the password alone.
+2. You fill in the form there. The browser posts it to the proxy, over your HTTPS.
+3. The proxy checks it the way the config file says: against the user list (`users`), with one request to the server (`upstream`), or at the server's login URL (`exchange`). Nothing from the form is logged.
 4. The client receives an authorization code and trades it for opaque OAuth tokens. Those tokens mean nothing outside your proxy.
 
-The MCP client never sees the password and never sees the ETAPI token.
+The MCP client never sees what was typed into the form, and never sees the credential the proxy sends upstream.
 
 ## What is stored
 
-In `/data`, encrypted with a key derived from `MCP_OAUTH_SECRET`:
+In `/data`, encrypted with a key derived from `MCP_OAUTH_SECRET` and `store_salt`: the registered clients, and for each login its OAuth tokens and the variables the forwarded requests need.
 
-- the registered clients,
-- for each login, its OAuth tokens and the ETAPI token Trilium issued for it.
+| Check | A login keeps |
+|---|---|
+| `users` | the user name only |
+| `upstream` | the form values the upstream headers use (for example a user name and an app token) |
+| `exchange` | the token from the login answer, plus form values the headers use |
 
-Anyone with the volume *and* the secret could use those ETAPI tokens, so keep `MCP_OAUTH_SECRET` out of the compose file (use `.env`) and treat the volume like Trilium's own data.
+Anyone with the volume *and* the secret could use what is stored, so keep `MCP_OAUTH_SECRET` out of the compose file (use `.env`) and treat the volume like the server's own data.
 
-## Cutting a client off
+## A server without a login
 
-Every login has its own ETAPI token, shown in Trilium under *Options → ETAPI*. Delete it there and the client is locked out on its next request. Revoking from the client side does the same: the proxy logs the token out in Trilium.
+With `users`, the proxy is the only gate in front of the server, so:
 
-Changing `MCP_OAUTH_SECRET` logs every client out at once. Their ETAPI tokens stay in Trilium until you delete them.
+- passwords are argon2id hashes, never plain text, and the config refuses anything else;
+- an unknown user name is checked against a dummy hash, so it takes as long as a wrong password and doesn't reveal which names exist; both get the same message;
+- raw tokens are refused (`static_tokens` can't be set), so only a token the proxy issued gets through;
+- the server's own port must not be reachable from where the proxy is published: the proxy protects its URL, not the server's.
 
 ## Failed logins
 
-A wrong password is answered after a short delay, which slows down guessing. Every attempt is a real login against Trilium.
+A refused login is answered after a short delay, which slows down guessing.
 
 ## What the proxy can't protect
 
-A client that is logged in has full access to your notes, exactly as with an ETAPI token: Trilium's MCP server has no read-only mode. Only connect clients you trust, and remove the ones you no longer use.
+A client that is logged in has whatever access the server gives that credential. Only connect clients you trust, and remove the ones you no longer use.

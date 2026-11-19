@@ -1,0 +1,34 @@
+# The Trilium example plus house rules, for the live tests (docker-compose.yaml).
+# Trilium Notes' built-in MCP server (Trilium 0.106+, /mcp).
+# The login form takes the Trilium password, which is traded for an ETAPI token at Trilium's
+# /etapi/auth/login; revoking the login logs that token out again. A client that already has an
+# ETAPI token (Claude Code) sends it as the Authorization header and Trilium judges it.
+service_name: Trilium Notes
+instructions: Fixture house rules.
+upstream: ${TRILIUM_URL}/mcp
+fields:
+  - {name: password, label: Trilium password, type: password, required: true}
+  - {name: totp, label: TOTP code or recovery code (if two-factor login is on), autocomplete: one-time-code}
+login:
+  exchange:
+    request:
+      method: POST
+      url: ${TRILIUM_URL}/etapi/auth/login
+      json: {password: "{password}", totpToken: "{totp}"}   # an empty TOTP field is left out
+    token: authToken
+    variable: etapi_token   # the name trilium-mcp-proxy stored, so old logins keep working
+    error: code
+messages:
+  WRONG_PASSWORD: Wrong password.
+  TOTP_REQUIRED: "Two-factor login is on: enter your TOTP code as well."
+  WRONG_TOTP: Wrong TOTP code.
+revoke:
+  method: POST
+  url: ${TRILIUM_URL}/etapi/auth/logout
+  headers: {Authorization: "{etapi_token}"}
+static_tokens: etapi_token
+upstream_headers: {Authorization: "{etapi_token}"}
+health: ${TRILIUM_URL}/api/health-check
+# The values trilium-mcp-proxy used, so logins made before the move stay valid.
+token_prefix: tmpx_
+store_salt: trilium-mcp-proxy-oauth
