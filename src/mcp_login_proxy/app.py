@@ -21,10 +21,10 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.routing import Route
 
-from trilium_mcp_proxy.config import Config, ConfigError, load_config
-from trilium_mcp_proxy.forward import Forwarder
+from mcp_login_proxy.config import Config, ConfigError, load_config
+from mcp_login_proxy.forward import Forwarder
 
-log = logging.getLogger("trilium_mcp_proxy")
+log = logging.getLogger("mcp_login_proxy")
 
 MCP_PATH = "/mcp"
 TOKEN_PREFIX = "tmpx_"

@@ -4,7 +4,7 @@ import json
 import httpx
 
 from conftest import call
-from trilium_mcp_proxy.forward import Forwarder
+from mcp_login_proxy.forward import Forwarder
 
 GRANT = {"etapi_token": "etapi-1"}
 

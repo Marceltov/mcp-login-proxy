@@ -1,6 +1,6 @@
 import pytest
 
-from trilium_mcp_proxy.config import Config, ConfigError, load_config
+from mcp_login_proxy.config import Config, ConfigError, load_config
 
 ENV = {"TRILIUM_SERVER_URL": "http://trilium:8080/", "MCP_BASE_URL": "https://proxy.example/",
        "MCP_OAUTH_SECRET": "s"}

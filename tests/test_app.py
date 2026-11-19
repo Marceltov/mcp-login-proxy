@@ -7,9 +7,9 @@ import httpx
 import pytest
 from starlette.testclient import TestClient
 
-from trilium_mcp_proxy import app as app_module
-from trilium_mcp_proxy.app import build_app
-from trilium_mcp_proxy.config import Config
+from mcp_login_proxy import app as app_module
+from mcp_login_proxy.app import build_app
+from mcp_login_proxy.config import Config
 
 BASE = "http://localhost:8081"
 REDIRECT = "http://localhost:9/cb"

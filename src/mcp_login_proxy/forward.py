@@ -13,9 +13,9 @@ import logging
 
 import httpx
 
-from trilium_mcp_proxy.inject import inject_instructions
+from mcp_login_proxy.inject import inject_instructions
 
-log = logging.getLogger("trilium_mcp_proxy")
+log = logging.getLogger("mcp_login_proxy")
 
 # RFC 9110 hop-by-hop headers, plus what httpx sets itself or we replace.
 HOP_BY_HOP = {"connection", "keep-alive", "transfer-encoding", "te", "trailer", "upgrade",

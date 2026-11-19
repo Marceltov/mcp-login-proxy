@@ -2,8 +2,8 @@ import json
 
 from conftest import call
 from fake_trilium import dumps
-from trilium_mcp_proxy.forward import Forwarder
-from trilium_mcp_proxy.inject import inject_instructions
+from mcp_login_proxy.forward import Forwarder
+from mcp_login_proxy.inject import inject_instructions
 
 GRANT = {"etapi_token": "etapi-1"}
 RESULT = {"protocolVersion": "2025-06-18", "capabilities": {"tools": {"listChanged": True}},
