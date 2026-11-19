@@ -1,6 +1,6 @@
 [project]
 name = "mcp-login-proxy"
-version = "0.3.0"
+version = "0.3.1"
 description = "OAuth login front for MCP servers, configured per deployment"
 readme = "README.md"
 license = "AGPL-3.0-or-later"
