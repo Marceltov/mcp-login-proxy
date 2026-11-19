@@ -1,36 +1,69 @@
 # Configuration
 
-All configuration is environment variables.
+## Environment
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `TRILIUM_SERVER_URL` | required | Trilium Notes as the proxy reaches it, e.g. `http://trilium:8080` |
 | `MCP_BASE_URL` | required | Public URL of the proxy; also the OAuth issuer (`https`, or `http` only for localhost) |
 | `MCP_OAUTH_SECRET` | required | Encrypts the stored logins in `/data`; changing it logs every client out |
-| `MCP_INSTRUCTIONS` | unset | Added to Trilium's `initialize` result as `instructions` |
+| `MCP_PROXY_CONFIG` | `/config/proxy.yaml` | The config file |
 | `MCP_PORT` | `8081` | Port the proxy listens on inside the container |
 | `LOG_LEVEL` | `INFO` | Python log level |
+| any other | | Referenced from the config file as `${NAME}`, for secrets such as the user list |
 
-A missing or invalid required variable stops the container at startup with a message naming it.
+A missing or invalid setting stops the container at startup with a message naming it.
+
+## The config file
+
+`${NAME}` is replaced from the environment when the file is loaded; a name that isn't set is an error. `{name}` placeholders are filled per login or per request from the variables below. `{{` and `}}` are literal braces.
+
+| Key | Default | Meaning |
+|---|---|---|
+| `service_name` | required | Shown on the login form |
+| `upstream` | required | The MCP server's full URL, e.g. `http://trilium:8080/mcp`; the query string of each request is kept |
+| `instructions` | none | Added to the server's `initialize` result as `instructions` |
+| `fields` | required | The login form: a list of `{name, label, type, required, autocomplete, hint}`; `type` is `text`, `password` or `email` |
+| `login` | required | Exactly one of `users`, `upstream` or `exchange` (below) |
+| `messages` | none | For `exchange`: an error code from the login answer → the text shown on the form |
+| `revoke` | none | A request sent when a client revokes its login: `{method, url, headers, json}` |
+| `static_tokens` | off | A variable name: a raw `Authorization` header (with or without `Bearer`) is accepted as that variable and passed on; the server judges it. Not allowed with `users` |
+| `vars` | none | Derived variables: `{name: {base64: "<template>"}}` |
+| `upstream_headers` | none | Headers added to each forwarded request, e.g. `{Authorization: "Basic {basic}"}`. The client's own `Authorization` is never forwarded |
+| `health` | none | A URL `/health` checks; without it `/health` only says the proxy runs |
+| `token_prefix` | `mlpx_` | Prefix of the proxy's OAuth tokens |
+| `store_salt` | `mcp-login-proxy-oauth` | Salt for the store's encryption key |
+
+Text fields are trimmed before they're used; password fields are passed exactly as typed.
+
+### `login.users`
+
+A fixed list: `name:hash` entries separated by spaces or newlines, the hashes argon2id (`mcp-login-proxy hash` makes one). The form must have a `user` and a `password` field. The login only keeps `{user}`, never the password, and `static_tokens` is refused: the server behind it has no login, so a raw token would let anyone in.
+
+### `login.upstream`
+
+`upstream: {}`. The form's values are rendered into `upstream_headers` and tried with one `initialize` request to `upstream`; any 2xx answer accepts the login. The login keeps the form's values that `upstream_headers`, `vars` and `revoke` use.
+
+### `login.exchange`
+
+| Key | Meaning |
+|---|---|
+| `request` | `{method, url, headers, json}` with the form's fields as placeholders. In `json`, a value that renders empty is left out |
+| `token` | The JSON field of the answer that holds the token |
+| `variable` | The variable it becomes, default `token` |
+| `error` | The JSON field of a refusal, looked up in `messages`; otherwise the form shows the HTTP status |
 
 ## Data volume
 
-Mount a volume at `/data`. It holds the OAuth store (registered clients, refresh tokens and each login's ETAPI token), encrypted with a key derived from `MCP_OAUTH_SECRET`. Without the volume, every container restart logs all clients out.
-
-## House rules
-
-`MCP_INSTRUCTIONS` is the one thing the proxy adds to Trilium's answers: it becomes the `instructions` field of the `initialize` result, which MCP clients read when they connect. Use it for standing rules, for example:
-
-```yaml
-      MCP_INSTRUCTIONS: |
-        This Trilium contains an LLM-maintained wiki. Search for #llmWikiSchema,
-        read that note and follow it. Never write under "Sources".
-```
+Mount a volume at `/data`. It holds the OAuth store (registered clients, tokens and each login's variables), encrypted with a key derived from `MCP_OAUTH_SECRET` and `store_salt`. Without the volume, every container restart logs all clients out.
 
 ## Endpoints
 
 | Path | What |
 |---|---|
-| `/mcp` | Trilium's MCP server, behind the login |
-| `/health` | `{"status": "ok", "trilium": "ok" \| "unreachable"}`, no login needed |
+| `/mcp` | The MCP server, behind the login |
+| `/health` | `{"status": "ok"}`, plus `"upstream": "ok" \| "unreachable"` with `health` set; no login needed |
 | `/.well-known/…`, `/authorize`, `/token`, `/register`, `/revoke` and the login page | The OAuth endpoints MCP clients find and use on their own |
+
+## Moving from trilium-mcp-proxy
+
+Mount [`docs/examples/trilium.yaml`](https://github.com/Marceltov/mcp-login-proxy/blob/main/docs/examples/trilium.yaml) with `TRILIUM_URL` set, move `MCP_INSTRUCTIONS` into `instructions`, keep `MCP_BASE_URL`, `MCP_OAUTH_SECRET` and the `/data` volume. Its `token_prefix`, `store_salt` and `variable` are trilium-mcp-proxy's, so every existing login keeps working.
