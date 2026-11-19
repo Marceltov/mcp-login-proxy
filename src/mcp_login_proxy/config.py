@@ -55,10 +55,23 @@ class Exchange(_Strict):
     error: str | None = None  # the JSON field of a refusal, looked up in `messages`
 
 
+class Oidc(_Strict):
+    issuer: str  # exactly as the provider publishes it; Authentik: https://<host>/application/o/<slug>/
+    client_id: str
+    client_secret: str | None = None
+    name: str = "single sign-on"  # "Continue with <name>"
+    scopes: list[str] = ["openid", "profile", "email"]
+    user_claim: str = "preferred_username"
+    allowed_groups: list[str] = []
+    allowed_users: list[str] = []
+    verify_tls: bool = True
+
+
 class Login(_Strict):
     users: str | None = None
     upstream: dict[str, Any] | None = None
     exchange: Exchange | None = None
+    oidc: Oidc | None = None
 
     @model_validator(mode="before")
     @classmethod
@@ -70,20 +83,23 @@ class Login(_Strict):
 
     @model_validator(mode="after")
     def _exactly_one(self):
-        if sum(x is not None for x in (self.users, self.upstream, self.exchange)) != 1:
-            raise ValueError("login needs exactly one of users, upstream or exchange")
+        if sum(x is not None for x in (self.users, self.upstream, self.exchange, self.oidc)) != 1:
+            raise ValueError("login needs exactly one of users, upstream, exchange or oidc")
         return self
 
     @property
-    def kind(self) -> Literal["users", "upstream", "exchange"]:
-        return "users" if self.users is not None else "upstream" if self.upstream is not None else "exchange"
+    def kind(self) -> Literal["users", "upstream", "exchange", "oidc"]:
+        for kind in ("users", "upstream", "exchange", "oidc"):
+            if getattr(self, kind) is not None:
+                return kind
+        raise AssertionError("validated: exactly one login kind")
 
 
 class ProxyConfig(_Strict):
     service_name: str
     upstream: str
     instructions: str | None = None
-    fields: list[FormField]
+    fields: list[FormField] = []  # the login form; none with login.oidc
     login: Login
     messages: dict[str, str] = {}
     revoke: HttpRequest | None = None
@@ -134,8 +150,8 @@ def _substitute(text: str, env: Mapping[str, str]) -> str:
 
 def grant_names(proxy: ProxyConfig) -> set[str]:
     """The variables a grant may hold: what a login produces, before `vars` are derived."""
-    if proxy.login.kind == "users":
-        return {"user"}  # never the password: the upstream doesn't need it
+    if proxy.login.kind in ("users", "oidc"):
+        return {"user"}  # never the password or the provider's tokens: the upstream doesn't need them
     names = {f.name for f in proxy.fields}
     if proxy.login.kind == "exchange":
         names.add(proxy.login.exchange.variable)
@@ -145,6 +161,18 @@ def grant_names(proxy: ProxyConfig) -> set[str]:
 
 
 def _check(proxy: ProxyConfig) -> None:
+    if proxy.login.kind == "oidc":
+        oidc = proxy.login.oidc
+        if proxy.fields:
+            raise ConfigError("fields can't be used with login.oidc: the provider asks who you are")
+        if proxy.static_tokens:
+            raise ConfigError("static_tokens can't be used with login.oidc: only someone the provider signed in "
+                              "may get through")
+        if not oidc.allowed_groups and not oidc.allowed_users:
+            raise ConfigError("login.oidc needs allowed_groups or allowed_users: otherwise everyone with an "
+                              "account at the provider would get in")
+    elif not proxy.fields:
+        raise ConfigError("fields is empty: the login form needs at least one field")
     if proxy.login.kind == "users":
         if proxy.static_tokens:
             raise ConfigError("static_tokens can't be used with login.users: the upstream has no login of its "

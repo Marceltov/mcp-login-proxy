@@ -1,6 +1,6 @@
 [project]
 name = "mcp-login-proxy"
-version = "0.2.0"
+version = "0.3.0"
 description = "OAuth login front for MCP servers, configured per deployment"
 readme = "README.md"
 license = "AGPL-3.0-or-later"
@@ -39,4 +39,4 @@ testpaths = ["tests"]
 pythonpath = ["."]
 
 [tool.uv.sources]
-mcp-login-oauth = { git = "https://github.com/Marceltov/mcp-login-oauth", rev = "v0.3.0" }
+mcp-login-oauth = { git = "https://github.com/Marceltov/mcp-login-oauth", rev = "oidc-login" }

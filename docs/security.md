@@ -20,6 +20,7 @@ In `/data`, encrypted with a key derived from `MCP_OAUTH_SECRET` and `store_salt
 | `users` | the user name only |
 | `upstream` | the form values the upstream headers use (for example a user name and an app token) |
 | `exchange` | the token from the login answer, plus form values the headers use |
+| `oidc` | the user name only; the provider's tokens are thrown away after the check |
 
 Anyone with the volume *and* the secret could use what is stored, so keep `MCP_OAUTH_SECRET` out of the compose file (use `.env`) and treat the volume like the server's own data.
 

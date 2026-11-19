@@ -22,8 +22,8 @@ A missing or invalid setting stops the container at startup with a message namin
 | `service_name` | required | Shown on the login form |
 | `upstream` | required | The MCP server's full URL, e.g. `http://trilium:8080/mcp`; the query string of each request is kept |
 | `instructions` | none | Added to the server's `initialize` result as `instructions` |
-| `fields` | required | The login form: a list of `{name, label, type, required, autocomplete, hint}`; `type` is `text`, `password` or `email` |
-| `login` | required | Exactly one of `users`, `upstream` or `exchange` (below) |
+| `fields` | required, none with `oidc` | The login form: a list of `{name, label, type, required, autocomplete, hint}`; `type` is `text`, `password` or `email` |
+| `login` | required | Exactly one of `users`, `upstream`, `exchange` or `oidc` (below) |
 | `messages` | none | For `exchange`: an error code from the login answer → the text shown on the form |
 | `revoke` | none | A request sent when a client revokes its login: `{method, url, headers, json}` |
 | `static_tokens` | off | A variable name: a raw `Authorization` header (with or without `Bearer`) is accepted as that variable and passed on; the server judges it. Not allowed with `users` |
@@ -51,6 +51,24 @@ A fixed list: `name:hash` entries separated by spaces or newlines, the hashes ar
 | `token` | The JSON field of the answer that holds the token |
 | `variable` | The variable it becomes, default `token` |
 | `error` | The JSON field of a refusal, looked up in `messages`; otherwise the form shows the HTTP status |
+
+### `login.oidc`
+
+People sign in at an OpenID Connect provider (Authentik, Keycloak, …) instead of a form: the login page shows the consent card and one button, "Continue with <name>". mcp-login-oauth does the round trip and checks the ID token; the proxy then lets in whoever is allowed. Example: [`docs/examples/authentik.yaml`](https://github.com/Marceltov/mcp-login-proxy/blob/main/docs/examples/authentik.yaml).
+
+| Key | Default | Meaning |
+|---|---|---|
+| `issuer` | required | The provider's issuer, exactly as published. Authentik: `https://<host>/application/o/<slug>/` |
+| `client_id`, `client_secret` | required, none | The client registered at the provider; without a secret it is public (PKCE only) |
+| `name` | `single sign-on` | On the button and in error pages |
+| `scopes` | `[openid, profile, email]` | Authentik puts `groups` into `profile` |
+| `user_claim` | `preferred_username` | The claim that becomes `{user}` |
+| `allowed_groups`, `allowed_users` | none | Who gets in: a name in `allowed_users` or one of the token's `groups` in `allowed_groups`. At least one list is required: an account at the provider alone is not enough |
+| `verify_tls` | `true` | `false` turns certificate checks off for the provider |
+
+Register `<MCP_BASE_URL>/login/callback` as the redirect URI at the provider. The login keeps only `{user}`; `fields` and `static_tokens` are refused with `oidc`. `{user}` can go upstream, for example `upstream_headers: {X-Forwarded-User: "{user}"}`.
+
+In Authentik: *Applications → Providers → Create → OAuth2/OpenID Provider* (client type confidential, the redirect URI above, signing key set, the default scope mappings), then an application for it. A policy binding on the application can limit who may sign in there as well.
 
 ## Data volume
 
