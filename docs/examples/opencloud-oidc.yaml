@@ -1,0 +1,29 @@
+# opencloud-mcp (opencloud-eu/opencloud-mcp), signed in through Authentik instead of a pasted app token.
+# The person signs in at Authentik (MFA and all); with that sign-in's access token the proxy creates an
+# OpenCloud app token in their name (POST /auth-app/tokens) and forwards it as Basic on every request.
+# Nobody sees or pastes a token.
+#
+# In Authentik: an OAuth2/OpenID provider (confidential client, redirect URI <MCP_BASE_URL>/login/callback,
+# grant type authorization_code) whose access tokens OpenCloud accepts: the same issuer and signing key as
+# OpenCloud's own providers, and the scope mappings OpenCloud needs (openid, profile, email, and the
+# `roles` mapping when OpenCloud takes roles from Authentik).
+service_name: OpenCloud
+upstream: ${OPENCLOUD_MCP_URL}
+login:
+  oidc:
+    issuer: ${OIDC_ISSUER}
+    client_id: ${OIDC_CLIENT_ID}
+    client_secret: ${OIDC_CLIENT_SECRET}
+    name: Authentik
+    scopes: [openid, profile, email, roles]
+    allowed_groups: [opencloud-users]
+    credential:
+      request:
+        method: POST
+        url: "${OPENCLOUD_URL}/auth-app/tokens?expiry=2160h&label=Claude"
+        headers: {Authorization: "Bearer {access_token}", Accept: application/json}
+      token: token          # the JSON field of OpenCloud's answer that holds the app token
+      variable: token       # becomes {token} below
+vars:
+  basic: {base64: "{user}:{token}"}
+upstream_headers: {Authorization: "Basic {basic}"}

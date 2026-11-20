@@ -14,11 +14,11 @@
 
 An OAuth login front for MCP servers. Add its URL to claude.ai, the Claude apps, Claude Code or any other MCP client, sign in once on a form, and every request goes to the MCP server behind it unchanged. Everything about that server is one config file:
 
-- **How a login is checked:** against a fixed list of users and argon2id hashes (`users`, for a server with no login of its own), with one request to the server (`upstream`, for one that takes a credential per request), at a login URL whose answer holds a token (`exchange`, for one that hands out tokens), or at an OpenID Connect provider such as Authentik (`oidc`, with allowed groups or users).
+- **How a login is checked:** against a fixed list of users and argon2id hashes (`users`, for a server with no login of its own), with one request to the server (`upstream`, for one that takes a credential per request), at a login URL whose answer holds a token (`exchange`, for one that hands out tokens), or at an OpenID Connect provider such as Authentik (`oidc`, with allowed groups or users, optionally creating the upstream's own credential with the person's access token).
 - **What is added to each request:** headers rendered from that login, e.g. `Authorization: Basic {basic}`. The client's own `Authorization` is never forwarded.
 - **House rules:** `instructions` are added to the server's `initialize` answer.
 
-Example configs: [Trilium Notes](docs/examples/trilium.yaml), [OpenCloud](docs/examples/opencloud.yaml), [OpenBB](docs/examples/openbb.yaml), [Authentik](docs/examples/authentik.yaml). The login comes from [mcp-login-oauth](https://github.com/Marceltov/mcp-login-oauth). This project was trilium-mcp-proxy until v0.2.0 ([ADR 0003](docs/adr/0003-a-general-login-front-configured-per-deployment.md)).
+Example configs: [Trilium Notes](docs/examples/trilium.yaml), [OpenCloud](docs/examples/opencloud.yaml) (or [through Authentik](docs/examples/opencloud-oidc.yaml)), [OpenBB](docs/examples/openbb.yaml), [Authentik](docs/examples/authentik.yaml). The login comes from [mcp-login-oauth](https://github.com/Marceltov/mcp-login-oauth). This project was trilium-mcp-proxy until v0.2.0 ([ADR 0003](docs/adr/0003-a-general-login-front-configured-per-deployment.md)).
 
 ## Documentation
 
@@ -33,7 +33,7 @@ Example configs: [Trilium Notes](docs/examples/trilium.yaml), [OpenCloud](docs/e
 ```yaml
 services:
   mcp-proxy:
-    image: ghcr.io/marceltov/mcp-login-proxy:0.2.0
+    image: ghcr.io/marceltov/mcp-login-proxy:0.4.0
     restart: unless-stopped
     environment:
       MCP_BASE_URL: https://mcp.example.org   # the public URL, behind your TLS proxy

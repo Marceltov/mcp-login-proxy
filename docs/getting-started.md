@@ -29,7 +29,7 @@ Every key is explained under [Configuration](configuration.md).
 ```yaml
 services:
   mcp-proxy:
-    image: ghcr.io/marceltov/mcp-login-proxy:0.2.0
+    image: ghcr.io/marceltov/mcp-login-proxy:0.4.0
     restart: unless-stopped
     environment:
       MCP_BASE_URL: https://mcp.example.org   # the public URL, behind your TLS proxy

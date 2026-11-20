@@ -42,7 +42,8 @@ def build_provider(config: Config, client: httpx.AsyncClient, store_dir: Path, *
                 token_prefix=proxy.token_prefix)
     if oidc := proxy.login.oidc:
         args["oidc"] = OidcLogin(issuer=oidc.issuer, client_id=oidc.client_id, client_secret=oidc.client_secret,
-                                 scopes=tuple(oidc.scopes), name=oidc.name, verify_tls=oidc.verify_tls)
+                                 scopes=tuple(oidc.scopes), name=oidc.name, verify_tls=oidc.verify_tls,
+                                 pass_access_token=oidc.credential is not None)
     return LoginOAuthProvider(**{**args, **overrides})
 
 
